@@ -17,6 +17,9 @@ const AttendanceRecord = require("./models/AttendanceRecord");
 
 //routes import
 const authRoutes = require("./routes/authRoutes");
+const classRoutes = require("./routes/classRoutes");
+const subjectRoutes = require("./routes/subjectRoutes");
+const enrollmentRoutes = require("./routes/enrollmentRoutes");
 
 
 
@@ -29,6 +32,9 @@ app.use(cookieParser());
 
 //routes
 app.use("/api/auth", authRoutes);
+app.use("/api/classes", classRoutes);
+app.use("/api/subjects", subjectRoutes);
+app.use("/api/enrollments", enrollmentRoutes);
 
 
 

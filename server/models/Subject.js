@@ -14,6 +14,13 @@ const subjectSchema = new mongoose.Schema(
       trim: true,
       uppercase: true,
     },
+    joinCode: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      uppercase: true,
+    },
 
     classId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -34,13 +41,10 @@ const subjectSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-subjectSchema.index(
-  { classId: 1, subjectCode: 1 },
-  { unique: true }
-);
+subjectSchema.index({ classId: 1, subjectCode: 1 }, { unique: true });
 const Subject = mongoose.model("Subject", subjectSchema);
 
 module.exports = Subject;

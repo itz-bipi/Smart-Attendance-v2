@@ -26,6 +26,13 @@ const classSchema = new mongoose.Schema(
       trim: true,
     },
 
+    // Teacher who created/owns this class
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Teacher",
+      required: true,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
@@ -33,6 +40,18 @@ const classSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+  }
+);
+
+classSchema.index(
+  {
+    className: 1,
+    year: 1,
+    section: 1,
+    academicYear: 1,
+  },
+  {
+    unique: true,
   }
 );
 
