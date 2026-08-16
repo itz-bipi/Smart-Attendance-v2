@@ -24,13 +24,14 @@ const attendanceSessionSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      trim: true,
+      index: true,
     },
 
     status: {
       type: String,
       enum: ["ACTIVE", "CLOSED", "EXPIRED"],
       default: "ACTIVE",
+      index: true,
     },
 
     startedAt: {
@@ -48,12 +49,11 @@ const attendanceSessionSchema = new mongoose.Schema(
       default: null,
     },
 
-    location: {
+    teacherLocation: {
       latitude: {
         type: Number,
         required: true,
       },
-
       longitude: {
         type: Number,
         required: true,
@@ -62,8 +62,7 @@ const attendanceSessionSchema = new mongoose.Schema(
 
     allowedRadius: {
       type: Number,
-      required: true,
-      default: 50,
+      default: 100,
     },
   },
   {
