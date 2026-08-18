@@ -6,8 +6,24 @@ const {
   closeAttendanceSession: closeAttendanceSessionService,
   getMyActiveSessions: getMyActiveSessionsService,
   generateStudentAttendanceToken: generateStudentAttendanceTokenService,
-   verifyStudentAttendanceToken:
+  verifyStudentAttendanceToken:
     verifyStudentAttendanceTokenService,
+  verifyStudentLocation:
+    verifyStudentLocationService,  
+   verifyStudentFace:
+    verifyStudentFaceService,
+    markAttendance:
+    markAttendanceService,  
+     getStudentAttendanceHistory:
+    getStudentAttendanceHistoryService,
+    getSessionAttendance:
+    getSessionAttendanceService,
+    getCompleteSessionAttendance:
+    getCompleteSessionAttendanceService,
+    getSubjectAttendanceStats:
+    getSubjectAttendanceStatsService,
+    getStudentAttendanceStats:
+    getStudentAttendanceStatsService,
 } = require("../services/attendanceService");
 
 const startAttendanceSession = async (req, res) => {
@@ -401,11 +417,891 @@ const verifyStudentAttendanceToken = async (
   }
 };
 
+const verifyStudentLocation = async (
+  req,
+  res
+) => {
+  try {
+    const {
+      token,
+      latitude,
+      longitude,
+    } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Attendance token is required",
+      });
+    }
+
+    const result =
+      await verifyStudentLocationService(
+        token,
+        latitude,
+        longitude,
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+      message: "Student location verified successfully",
+
+      location: {
+        verified: result.verified,
+        distance: Math.round(result.distance),
+        allowedRadius: result.allowedRadius,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Verify student location error:",
+      error.message
+    );
+
+    if (
+      error.message ===
+        "Attendance token is required" ||
+      error.message ===
+        "Invalid or expired attendance token"
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message === "Invalid student ID" ||
+      error.message ===
+        "Attendance session not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+        "Attendance token does not belong to this student" ||
+      error.message ===
+        "Student is not enrolled in this subject"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+        "Attendance session is not active" ||
+      error.message ===
+        "Attendance session has expired"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+        "Valid latitude and longitude are required" ||
+      error.message === "Invalid latitude" ||
+      error.message === "Invalid longitude"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+      "Student is outside the allowed attendance location"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to verify student location",
+    });
+  }
+};
+
+const verifyStudentFace = async (
+  req,
+  res
+) => {
+  try {
+    const { faceDescriptor } = req.body;
+
+    if (!faceDescriptor) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Face descriptor is required",
+      });
+    }
+
+    const result =
+      await verifyStudentFaceService(
+        req.user.id,
+        faceDescriptor
+      );
+
+    res.status(200).json({
+      success: true,
+      message: "Face verified successfully",
+      faceVerification: {
+        verified: result.verified,
+        distance: result.distance,
+        threshold: result.threshold,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Face verification error:",
+      error.message
+    );
+
+    if (
+      error.message ===
+        "Invalid student ID" ||
+      error.message ===
+        "Student not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+        "Face descriptor is required" ||
+      error.message ===
+        "Invalid face descriptor"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+        "Face is not registered for this student"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+      "Face verification failed"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to verify face",
+    });
+  }
+};
+
+const markAttendance = async (req, res) => {
+  try {
+    const {
+      token,
+      latitude,
+      longitude,
+      faceDescriptor,
+    } = req.body;
+
+    const result =
+      await markAttendanceService({
+        token,
+        latitude,
+        longitude,
+        faceDescriptor,
+        studentId: req.user.id,
+      });
+
+    res.status(201).json({
+      success: true,
+      message:
+        "Attendance marked successfully",
+
+      attendance: {
+        id: result.attendanceRecord._id,
+        sessionId:
+          result.attendanceRecord.sessionId,
+        studentId:
+          result.attendanceRecord.studentId,
+        subjectId:
+          result.attendanceRecord.subjectId,
+        classId:
+          result.attendanceRecord.classId,
+        status:
+          result.attendanceRecord.status,
+        markedAt:
+          result.attendanceRecord.markedAt,
+      },
+
+      verification: {
+        qr: true,
+        geo: true,
+        face: true,
+        distance: Math.round(
+          result.distance
+        ),
+        faceDistance:
+          result.faceDistance,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Mark attendance error:",
+      error.message
+    );
+
+    // ------------------------------------------
+    // 401
+    // ------------------------------------------
+
+    if (
+      error.message ===
+        "Attendance token is required" ||
+      error.message ===
+        "Invalid or expired attendance token"
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ------------------------------------------
+    // 404
+    // ------------------------------------------
+
+    if (
+      error.message ===
+        "Invalid student ID" ||
+      error.message ===
+        "Attendance session not found" ||
+      error.message === "Student not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ------------------------------------------
+    // 403
+    // ------------------------------------------
+
+    if (
+      error.message ===
+        "Attendance token does not belong to this student" ||
+      error.message ===
+        "Student is not enrolled in this subject" ||
+      error.message ===
+        "Face verification failed" ||
+      error.message ===
+        "Student is outside the allowed attendance location"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ------------------------------------------
+    // 400
+    // ------------------------------------------
+
+    if (
+      error.message ===
+        "Attendance session is not active" ||
+      error.message ===
+        "Attendance session has expired" ||
+      error.message ===
+        "Face descriptor is required" ||
+      error.message ===
+        "Valid latitude and longitude are required" ||
+      error.message ===
+        "Invalid latitude" ||
+      error.message ===
+        "Invalid longitude" ||
+      error.message ===
+        "Face is not registered for this student" ||
+      error.message ===
+        "Session location is not configured"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ------------------------------------------
+    // Duplicate attendance
+    // ------------------------------------------
+
+    if (
+      error.message ===
+      "Attendance already marked for this session"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ------------------------------------------
+    // Server error
+    // ------------------------------------------
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to mark attendance",
+    });
+  }
+};
+
+const getStudentAttendanceHistory = async (
+  req,
+  res
+) => {
+  try {
+    const records =
+      await getStudentAttendanceHistoryService(
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+      count: records.length,
+
+      attendance: records.map((record) => ({
+        id: record._id,
+
+        session: record.sessionId
+          ? {
+              id: record.sessionId._id,
+              sessionCode:
+                record.sessionId.sessionCode,
+              startedAt:
+                record.sessionId.startedAt,
+            }
+          : null,
+
+        subject: record.subjectId
+          ? {
+              id: record.subjectId._id,
+              subjectName:
+                record.subjectId.subjectName,
+              subjectCode:
+                record.subjectId.subjectCode,
+            }
+          : null,
+
+        class: record.classId
+          ? {
+              id: record.classId._id,
+              className:
+                record.classId.className,
+              year: record.classId.year,
+              section:
+                record.classId.section,
+              academicYear:
+                record.classId.academicYear,
+            }
+          : null,
+
+        status: record.status,
+
+        markedAt: record.markedAt,
+
+        verification: record.verification,
+
+        geoVerification:
+          record.geoVerification,
+
+        faceVerification:
+          record.faceVerification,
+      })),
+    });
+  } catch (error) {
+    console.error(
+      "Get student attendance history error:",
+      error.message
+    );
+
+    if (error.message === "Invalid student ID") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch attendance history",
+    });
+  }
+};
+
+const getSessionAttendance = async (
+  req,
+  res
+) => {
+  try {
+    const { sessionId } = req.params;
+
+    const result =
+      await getSessionAttendanceService(
+        sessionId,
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+
+      session: {
+        id: result.session._id,
+
+        sessionCode:
+          result.session.sessionCode,
+
+        status:
+          result.session.status,
+
+        startedAt:
+          result.session.startedAt,
+
+        expiresAt:
+          result.session.expiresAt,
+
+        closedAt:
+          result.session.closedAt,
+
+        subject:
+          result.session.subjectId
+            ? {
+                id:
+                  result.session.subjectId._id,
+                subjectName:
+                  result.session.subjectId
+                    .subjectName,
+                subjectCode:
+                  result.session.subjectId
+                    .subjectCode,
+              }
+            : null,
+
+        class:
+          result.session.classId
+            ? {
+                id:
+                  result.session.classId._id,
+                className:
+                  result.session.classId
+                    .className,
+                year:
+                  result.session.classId.year,
+                section:
+                  result.session.classId.section,
+                academicYear:
+                  result.session.classId
+                    .academicYear,
+              }
+            : null,
+      },
+
+      count: result.records.length,
+
+      attendance: result.records.map(
+        (record) => ({
+          id: record._id,
+
+          student:
+            record.studentId
+              ? {
+                  id:
+                    record.studentId._id,
+                  name:
+                    record.studentId.name,
+                  rollNo:
+                    record.studentId.rollNo,
+                  email:
+                    record.studentId.email,
+                }
+              : null,
+
+          status: record.status,
+
+          markedAt:
+            record.markedAt,
+
+          verification:
+            record.verification,
+
+          geoVerification:
+            record.geoVerification,
+
+          faceVerification:
+            record.faceVerification,
+        })
+      ),
+    });
+  } catch (error) {
+    console.error(
+      "Get session attendance error:",
+      error.message
+    );
+
+    // ==========================================
+    // 400
+    // ==========================================
+
+    if (
+      error.message ===
+        "Invalid session ID" ||
+      error.message ===
+        "Invalid teacher ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ==========================================
+    // 403
+    // ==========================================
+
+    if (
+      error.message ===
+      "You are not authorized to view this session"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ==========================================
+    // 404
+    // ==========================================
+
+    if (
+      error.message ===
+      "Attendance session not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ==========================================
+    // 500
+    // ==========================================
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch session attendance",
+    });
+  }
+};
+
+const getCompleteSessionAttendance = async (
+  req,
+  res
+) => {
+  try {
+    const { sessionId } = req.params;
+
+    const result =
+      await getCompleteSessionAttendanceService(
+        sessionId,
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+
+      session: {
+        id: result.session._id,
+
+        sessionCode:
+          result.session.sessionCode,
+
+        status:
+          result.session.status,
+
+        startedAt:
+          result.session.startedAt,
+
+        expiresAt:
+          result.session.expiresAt,
+
+        closedAt:
+          result.session.closedAt,
+
+        subject:
+          result.session.subjectId
+            ? {
+                id:
+                  result.session.subjectId._id,
+                subjectName:
+                  result.session.subjectId
+                    .subjectName,
+                subjectCode:
+                  result.session.subjectId
+                    .subjectCode,
+              }
+            : null,
+
+        class:
+          result.session.classId
+            ? {
+                id:
+                  result.session.classId._id,
+                className:
+                  result.session.classId
+                    .className,
+                year:
+                  result.session.classId.year,
+                section:
+                  result.session.classId.section,
+                academicYear:
+                  result.session.classId
+                    .academicYear,
+              }
+            : null,
+      },
+
+      summary: result.summary,
+
+      attendance: result.attendance,
+    });
+  } catch (error) {
+    console.error(
+      "Get complete session attendance error:",
+      error.message
+    );
+
+    if (
+      error.message ===
+        "Invalid session ID" ||
+      error.message ===
+        "Invalid teacher ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+      "Attendance session not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error.message ===
+      "You are not authorized to view this session"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch complete session attendance",
+    });
+  }
+};
+
+const getSubjectAttendanceStats = async (
+  req,
+  res
+) => {
+  try {
+    const { subjectId } = req.params;
+
+    const result =
+      await getSubjectAttendanceStatsService(
+        subjectId,
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+
+      subject: {
+        id: result.subject._id,
+        subjectName:
+          result.subject.subjectName,
+        subjectCode:
+          result.subject.subjectCode,
+        className:
+          result.subject.className,
+      },
+
+      summary: result.summary,
+
+      students: result.students,
+    });
+  } catch (error) {
+    console.error(
+      "Get subject attendance stats error:",
+      error.message
+    );
+
+    // ==========================================
+    // 400
+    // ==========================================
+
+    if (
+      error.message ===
+        "Invalid subject ID" ||
+      error.message ===
+        "Invalid teacher ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ==========================================
+    // 403
+    // ==========================================
+
+    if (
+      error.message ===
+      "You are not authorized to view this subject"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ==========================================
+    // 404
+    // ==========================================
+
+    if (
+      error.message ===
+      "Subject not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // ==========================================
+    // 500
+    // ==========================================
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch subject attendance statistics",
+    });
+  }
+};
+
+const getStudentAttendanceStats = async (
+  req,
+  res
+) => {
+  try {
+    const result =
+      await getStudentAttendanceStatsService(
+        req.user.id
+      );
+
+    res.status(200).json({
+      success: true,
+
+      summary: result.summary,
+
+      subjects: result.subjects,
+
+      lowAttendanceSubjects:
+        result.lowAttendanceSubjects,
+    });
+  } catch (error) {
+    console.error(
+      "Get student attendance stats error:",
+      error.message
+    );
+
+    if (
+      error.message ===
+      "Invalid student ID"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch attendance statistics",
+    });
+  }
+};
+
 module.exports = {
   startAttendanceSession,
   getActiveSession,
   closeAttendanceSession,
   getMyActiveSessions,
   generateStudentAttendanceToken,
-  verifyStudentAttendanceToken
+  verifyStudentAttendanceToken,
+  verifyStudentLocation,
+  verifyStudentFace,
+  markAttendance,
+  getStudentAttendanceHistory,
+  getSessionAttendance,
+  getCompleteSessionAttendance,
+  getSubjectAttendanceStats,
+  getStudentAttendanceStats
 };

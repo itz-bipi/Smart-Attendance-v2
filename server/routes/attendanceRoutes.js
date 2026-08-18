@@ -6,7 +6,15 @@ const {
   closeAttendanceSession,
   getMyActiveSessions,
   generateStudentAttendanceToken,
-  verifyStudentAttendanceToken
+  verifyStudentAttendanceToken,
+  verifyStudentLocation,
+  verifyStudentFace,
+  markAttendance,
+  getStudentAttendanceHistory,
+  getSessionAttendance,
+  getCompleteSessionAttendance,
+  getSubjectAttendanceStats,
+   getStudentAttendanceStats,
 } = require("../controllers/attendanceController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -54,6 +62,62 @@ router.post(
   authMiddleware,
   roleMiddleware("student"),
   verifyStudentAttendanceToken
+);
+
+router.post(
+  "/verify-location",
+  authMiddleware,
+  roleMiddleware("student"),
+  verifyStudentLocation
+);
+
+router.post(
+  "/verify-face",
+  authMiddleware,
+  roleMiddleware("student"),
+  verifyStudentFace
+);
+
+router.post(
+  "/mark",
+  authMiddleware,
+  roleMiddleware("student"),
+  markAttendance
+);
+
+router.get(
+  "/student/history",
+  authMiddleware,
+  roleMiddleware("student"),
+  getStudentAttendanceHistory
+);
+
+router.get(
+  "/session/:sessionId",
+  authMiddleware,
+  roleMiddleware("teacher"),
+  getSessionAttendance
+);
+
+router.get(
+  "/session/:sessionId/complete",
+  authMiddleware,
+  roleMiddleware("teacher"),
+  getCompleteSessionAttendance
+);
+
+router.get(
+  "/subject/:subjectId/stats",
+  authMiddleware,
+  roleMiddleware("teacher"),
+  getSubjectAttendanceStats
+);
+
+router.get(
+  "/student/stats",
+  authMiddleware,
+  roleMiddleware("student"),
+  getStudentAttendanceStats
 );
 
 module.exports = router;

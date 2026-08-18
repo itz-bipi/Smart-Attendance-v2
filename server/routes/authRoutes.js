@@ -6,6 +6,7 @@ const {
   getCurrentUser,
   registerTeacher,
   loginTeacher,
+  logout,
 } = require("../controllers/authController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -20,6 +21,11 @@ router.post("/student/register", registerStudent);
 router.post("/student/login", loginStudent);
 
 router.get("/me", authMiddleware, getCurrentUser);
+
+router.post(
+  "/logout",
+  logout
+);
 
 
 module.exports = router;
